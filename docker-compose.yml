@@ -1,0 +1,104 @@
+version: '3.8'
+
+services:
+  # ============================================
+  # KEYCLOAK - Identity Provider (IdP)
+  # ============================================
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0
+    container_name: keycloak
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_HTTP_RELATIVE_PATH: /auth
+    command:
+      - start-dev
+      - --import-realm
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+    networks:
+      - zero-trust-network
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080;echo -e 'GET /auth/health/ready HTTP/1.1\r\nhost: localhost\r\nConnection: close\r\n\r\n' >&3;if [ $? -eq 0 ]; then echo 'Healthcheck Successful';exit 0;else echo 'Healthcheck Failed';exit 1;fi;"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ============================================
+  # SERVICE A - Orders API (Public-facing)
+  # - Validates user JWT tokens
+  # - Calls Service B using service account
+  # ============================================
+  service-a:
+    build:
+      context: ./service-a
+      dockerfile: Dockerfile
+    container_name: service-a-orders
+    environment:
+      SERVICE_NAME: orders-service
+      PORT: 5001
+      # Keycloak configuration
+      KEYCLOAK_URL: http://keycloak:8080/auth
+      KEYCLOAK_REALM: zero-trust-demo
+      KEYCLOAK_CLIENT_ID: orders-service
+      KEYCLOAK_CLIENT_SECRET: orders-service-secret
+      # Service B URL for API-to-API calls
+      SERVICE_B_URL: http://service-b:5002
+      # Audience for Service B tokens
+      SERVICE_B_AUDIENCE: inventory-service
+    ports:
+      - "5001:5001"
+    networks:
+      - zero-trust-network
+    depends_on:
+      - keycloak
+
+  # ============================================
+  # SERVICE B - Inventory API (Internal only)
+  # - Only accepts tokens from other services
+  # - Validates service-to-service tokens
+  # ============================================
+  service-b:
+    build:
+      context: ./service-b
+      dockerfile: Dockerfile
+    container_name: service-b-inventory
+    environment:
+      SERVICE_NAME: inventory-service
+      PORT: 5002
+      # Keycloak configuration
+      KEYCLOAK_URL: http://keycloak:8080/auth
+      KEYCLOAK_REALM: zero-trust-demo
+      KEYCLOAK_CLIENT_ID: inventory-service
+      # Allowed callers (Zero Trust - explicit allow list)
+      ALLOWED_CALLERS: orders-service
+    ports:
+      - "5002:5002"
+    networks:
+      - zero-trust-network
+    depends_on:
+      - keycloak
+
+  # ============================================
+  # FRONTEND - Static HTML/JS
+  # ============================================
+  frontend:
+    image: nginx:alpine
+    container_name: frontend
+    ports:
+      - "3000:80"
+    volumes:
+      - ./frontend/index.html:/usr/share/nginx/html/index.html:ro
+      - ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - zero-trust-network
+    depends_on:
+      - keycloak
+      - service-a
+
+networks:
+  zero-trust-network:
+    driver: bridge

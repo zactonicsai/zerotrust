@@ -1,0 +1,203 @@
+{
+  "id": "zero-trust-demo",
+  "realm": "zero-trust-demo",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": false,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "accessTokenLifespan": 300,
+  "accessTokenLifespanForImplicitFlow": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "roles": {
+    "realm": [
+      {
+        "name": "user",
+        "description": "Regular user role"
+      },
+      {
+        "name": "admin",
+        "description": "Admin user role"
+      }
+    ],
+    "client": {
+      "orders-service": [
+        {
+          "name": "orders-read",
+          "description": "Read orders"
+        },
+        {
+          "name": "orders-write",
+          "description": "Create/update orders"
+        }
+      ],
+      "inventory-service": [
+        {
+          "name": "inventory-read",
+          "description": "Read inventory"
+        },
+        {
+          "name": "inventory-update",
+          "description": "Update inventory"
+        }
+      ]
+    }
+  },
+  "clients": [
+    {
+      "clientId": "frontend-app",
+      "name": "Frontend Application",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "authorizationServicesEnabled": false,
+      "redirectUris": [
+        "http://localhost:3000/*",
+        "http://127.0.0.1:3000/*"
+      ],
+      "webOrigins": [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000"
+      ],
+      "protocol": "openid-connect",
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "defaultClientScopes": [
+        "openid",
+        "profile",
+        "email"
+      ]
+    },
+    {
+      "clientId": "orders-service",
+      "name": "Orders Service",
+      "description": "Backend Orders API - can call Inventory Service",
+      "enabled": true,
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": false,
+      "secret": "orders-service-secret",
+      "protocol": "openid-connect",
+      "defaultClientScopes": [
+        "openid",
+        "profile"
+      ]
+    },
+    {
+      "clientId": "inventory-service",
+      "name": "Inventory Service",
+      "description": "Backend Inventory API - internal only",
+      "enabled": true,
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": false,
+      "secret": "inventory-service-secret",
+      "protocol": "openid-connect",
+      "defaultClientScopes": [
+        "openid",
+        "profile"
+      ]
+    }
+  ],
+  "clientScopes": [
+    {
+      "name": "orders-read",
+      "description": "Read access to orders",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true"
+      }
+    },
+    {
+      "name": "orders-write",
+      "description": "Write access to orders",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true"
+      }
+    },
+    {
+      "name": "inventory-read",
+      "description": "Read access to inventory",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true"
+      }
+    },
+    {
+      "name": "inventory-update",
+      "description": "Update access to inventory",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true"
+      }
+    }
+  ],
+  "users": [
+    {
+      "username": "testuser",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Test",
+      "lastName": "User",
+      "email": "testuser@example.com",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "testpass123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "user"
+      ]
+    },
+    {
+      "username": "admin",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Admin",
+      "lastName": "User",
+      "email": "admin@example.com",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "adminpass123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "user",
+        "admin"
+      ]
+    },
+    {
+      "username": "service-account-orders-service",
+      "enabled": true,
+      "emailVerified": false,
+      "serviceAccountClientId": "orders-service",
+      "clientRoles": {
+        "inventory-service": [
+          "inventory-read",
+          "inventory-update"
+        ]
+      }
+    }
+  ]
+}

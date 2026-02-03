@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zero Trust Demo - Microservices</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-dark: #4338ca;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            color: var(--primary);
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+        }
+
+        .architecture-diagram {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            font-family: monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            white-space: pre;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .card h2 {
+            font-size: 1.25rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .badge-success { background: #dcfce7; color: #166534; }
+        .badge-warning { background: #fef3c7; color: #92400e; }
+        .badge-danger { background: #fee2e2; color: #991b1b; }
+        .badge-info { background: #dbeafe; color: #1e40af; }
+
+        button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: var(--primary-dark);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: var(--border);
+            color: var(--text);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .user-info {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .user-info p {
+            margin-bottom: 0.25rem;
+        }
+
+        .token-display {
+            background: #1e293b;
+            color: #e2e8f0;
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: monospace;
+            font-size: 0.8rem;
+            max-height: 200px;
+            overflow-y: auto;
+            word-break: break-all;
+            margin-top: 1rem;
+        }
+
+        .response-box {
+            background: #f1f5f9;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .response-box pre {
+            font-size: 0.85rem;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--text-muted);
+        }
+
+        .status-dot.success { background: var(--success); }
+        .status-dot.error { background: var(--danger); }
+        .status-dot.pending { background: var(--warning); animation: pulse 1s infinite; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .flow-step {
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+            padding: 1rem;
+            border-left: 3px solid var(--border);
+            margin-left: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .flow-step.active {
+            border-left-color: var(--primary);
+            background: #f0f9ff;
+        }
+
+        .flow-step.complete {
+            border-left-color: var(--success);
+        }
+
+        .step-number {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        .flow-step.active .step-number { background: var(--primary); color: white; }
+        .flow-step.complete .step-number { background: var(--success); color: white; }
+
+        .logs {
+            background: #1e293b;
+            color: #94a3b8;
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: monospace;
+            font-size: 0.75rem;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .log-entry {
+            padding: 0.25rem 0;
+            border-bottom: 1px solid #334155;
+        }
+
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        .log-time {
+            color: #64748b;
+        }
+
+        .log-info { color: #60a5fa; }
+        .log-success { color: #34d399; }
+        .log-error { color: #f87171; }
+        .log-warning { color: #fbbf24; }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .mt-1 { margin-top: 1rem; }
+        .mb-1 { margin-bottom: 1rem; }
+
+        @media (max-width: 768px) {
+            body { padding: 1rem; }
+            .grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔐 Zero Trust Microservices Demo</h1>
+            <p class="subtitle">Authentication with Keycloak | Service-to-Service Communication</p>
+        </header>
+
+        <div class="architecture-diagram">
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│                           ZERO TRUST ARCHITECTURE                                    │
+├─────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                      │
+│   ┌──────────┐      ①            ┌─────────────┐                                    │
+│   │          │ ─────────────────▶│             │                                    │
+│   │  User /  │   Login (PKCE)    │  Keycloak   │                                    │
+│   │ Frontend │ ◀─────────────────│    (IdP)    │                                    │
+│   │          │   JWT Token       │             │                                    │
+│   └────┬─────┘                   └──────┬──────┘                                    │
+│        │                                │                                           │
+│        │ ② API Call                     │ ③ Validate Token                         │
+│        │ + Bearer Token                 │ + Issue Service Token                    │
+│        ▼                                ▼                                           │
+│   ┌─────────────┐            ┌─────────────────────────┐                           │
+│   │  Service A  │ ──────────▶│       Service B         │                           │
+│   │  (Orders)   │  ④ API-to-API       (Inventory)      │                           │
+│   │             │  + Service Token    │                │                           │
+│   │  Port 5001  │ ◀──────────│        Port 5002        │                           │
+│   └─────────────┘   Response └─────────────────────────┘                           │
+│                                                                                      │
+│   Legend:                                                                            │
+│   ① User authenticates via OAuth2/OIDC (Authorization Code + PKCE)                  │
+│   ② Frontend calls Service A with user's JWT token                                  │
+│   ③ Service A validates token, gets service token for Service B                     │
+│   ④ Service A calls Service B with service account token (client credentials)       │
+│                                                                                      │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+        </div>
+
+        <div class="grid">
+            <!-- Authentication Card -->
+            <div class="card">
+                <h2>
+                    🔑 Authentication
+                    <span id="auth-badge" class="badge badge-warning">Not Authenticated</span>
+                </h2>
+
+                <div id="login-section">
+                    <p class="mb-1">Login with Keycloak using OAuth2 Authorization Code flow with PKCE.</p>
+                    <div class="btn-group">
+                        <button id="btn-login" class="btn-primary" onclick="login()">
+                            Login with Keycloak
+                        </button>
+                    </div>
+                    <p class="mt-1" style="font-size: 0.85rem; color: var(--text-muted);">
+                        Test credentials: <code>testuser / testpass123</code>
+                    </p>
+                </div>
+
+                <div id="user-section" class="hidden">
+                    <div class="user-info">
+                        <p><strong>Username:</strong> <span id="user-name">-</span></p>
+                        <p><strong>Email:</strong> <span id="user-email">-</span></p>
+                        <p><strong>Roles:</strong> <span id="user-roles">-</span></p>
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn-secondary" onclick="toggleToken()">
+                            Show/Hide Token
+                        </button>
+                        <button class="btn-danger" onclick="logout()">
+                            Logout
+                        </button>
+                    </div>
+                    <div id="token-section" class="token-display hidden"></div>
+                </div>
+            </div>
+
+            <!-- API Calls Card -->
+            <div class="card">
+                <h2>📡 API Calls (Client → Service A)</h2>
+                
+                <div class="btn-group mb-1">
+                    <button class="btn-primary" onclick="getOrders()" id="btn-orders">
+                        Get My Orders
+                    </button>
+                    <button class="btn-primary" onclick="getOrderDetail('ORD-001')" id="btn-order-detail">
+                        Get Order Detail
+                    </button>
+                    <button class="btn-primary" onclick="getProfile()" id="btn-profile">
+                        Get Profile
+                    </button>
+                </div>
+
+                <div class="status">
+                    <span id="api-status-dot" class="status-dot"></span>
+                    <span id="api-status-text">Ready</span>
+                </div>
+
+                <div id="api-response" class="response-box hidden">
+                    <pre id="api-response-content"></pre>
+                </div>
+            </div>
+
+            <!-- Zero Trust Flow Card -->
+            <div class="card">
+                <h2>🔒 Zero Trust Flow Visualization</h2>
+                
+                <div id="flow-steps">
+                    <div class="flow-step" id="step-1">
+                        <span class="step-number">1</span>
+                        <div>
+                            <strong>User Authentication</strong>
+                            <p style="font-size: 0.85rem; color: var(--text-muted);">
+                                User logs in via Keycloak (OAuth2 + PKCE)
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flow-step" id="step-2">
+                        <span class="step-number">2</span>
+                        <div>
+                            <strong>Frontend → Service A</strong>
+                            <p style="font-size: 0.85rem; color: var(--text-muted);">
+                                API call with user's JWT token
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flow-step" id="step-3">
+                        <span class="step-number">3</span>
+                        <div>
+                            <strong>Token Validation</strong>
+                            <p style="font-size: 0.85rem; color: var(--text-muted);">
+                                Service A validates JWT with Keycloak
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flow-step" id="step-4">
+                        <span class="step-number">4</span>
+                        <div>
+                            <strong>Service A → Service B</strong>
+                            <p style="font-size: 0.85rem; color: var(--text-muted);">
+                                API-to-API call with service account token
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flow-step" id="step-5">
+                        <span class="step-number">5</span>
+                        <div>
+                            <strong>Response</strong>
+                            <p style="font-size: 0.85rem; color: var(--text-muted);">
+                                Aggregated response returned to user
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Logs Card -->
+            <div class="card">
+                <h2>📋 Activity Logs</h2>
+                <div class="logs" id="logs">
+                    <div class="log-entry">
+                        <span class="log-time">[--:--:--]</span>
+                        <span class="log-info">Application initialized</span>
+                    </div>
+                </div>
+                <button class="btn-secondary mt-1" onclick="clearLogs()">Clear Logs</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // Configuration
+        // ============================================
+        const CONFIG = {
+            keycloak: {
+                url: 'http://localhost:8080/auth',
+                realm: 'zero-trust-demo',
+                clientId: 'frontend-app'
+            },
+            api: {
+                serviceA: 'http://localhost:5001'
+            }
+        };
+
+        // ============================================
+        // State
+        // ============================================
+        let state = {
+            accessToken: null,
+            refreshToken: null,
+            user: null,
+            codeVerifier: null
+        };
+
+        // ============================================
+        // Logging Utility
+        // ============================================
+        function log(message, type = 'info') {
+            const logsEl = document.getElementById('logs');
+            const time = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = `<span class="log-time">[${time}]</span> <span class="log-${type}">${message}</span>`;
+            logsEl.appendChild(entry);
+            logsEl.scrollTop = logsEl.scrollHeight;
+        }
+
+        function clearLogs() {
+            document.getElementById('logs').innerHTML = '';
+            log('Logs cleared', 'info');
+        }
+
+        // ============================================
+        // PKCE Utilities
+        // ============================================
+        function generateCodeVerifier() {
+            const array = new Uint8Array(32);
+            crypto.getRandomValues(array);
+            return base64URLEncode(array);
+        }
+
+        async function generateCodeChallenge(verifier) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(verifier);
+            const hash = await crypto.subtle.digest('SHA-256', data);
+            return base64URLEncode(new Uint8Array(hash));
+        }
+
+        function base64URLEncode(buffer) {
+            return btoa(String.fromCharCode(...buffer))
+                .replace(/\+/g, '-')
+                .replace(/\//g, '_')
+                .replace(/=+$/, '');
+        }
+
+        // ============================================
+        // OAuth2 / Keycloak Authentication
+        // ============================================
+        async function login() {
+            log('Initiating OAuth2 login with PKCE...', 'info');
+            
+            // Generate PKCE code verifier and challenge
+            state.codeVerifier = generateCodeVerifier();
+            const codeChallenge = await generateCodeChallenge(state.codeVerifier);
+            
+            // Store verifier in session storage
+            sessionStorage.setItem('pkce_verifier', state.codeVerifier);
+            
+            // Build authorization URL
+            const authUrl = new URL(`${CONFIG.keycloak.url}/realms/${CONFIG.keycloak.realm}/protocol/openid-connect/auth`);
+            authUrl.searchParams.set('client_id', CONFIG.keycloak.clientId);
+            authUrl.searchParams.set('redirect_uri', window.location.origin + window.location.pathname);
+            authUrl.searchParams.set('response_type', 'code');
+            authUrl.searchParams.set('scope', 'openid profile email');
+            authUrl.searchParams.set('code_challenge', codeChallenge);
+            authUrl.searchParams.set('code_challenge_method', 'S256');
+            authUrl.searchParams.set('state', crypto.randomUUID());
+            
+            log('Redirecting to Keycloak...', 'info');
+            window.location.href = authUrl.toString();
+        }
+
+        async function handleCallback() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+            
+            if (!code) return false;
+            
+            log('Authorization code received, exchanging for tokens...', 'info');
+            
+            // Get stored verifier
+            const verifier = sessionStorage.getItem('pkce_verifier');
+            if (!verifier) {
+                log('PKCE verifier not found!', 'error');
+                return false;
+            }
+            
+            try {
+                // Exchange code for tokens
+                const tokenUrl = `${CONFIG.keycloak.url}/realms/${CONFIG.keycloak.realm}/protocol/openid-connect/token`;
+                
+                const response = await fetch(tokenUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: new URLSearchParams({
+                        grant_type: 'authorization_code',
+                        client_id: CONFIG.keycloak.clientId,
+                        code: code,
+                        redirect_uri: window.location.origin + window.location.pathname,
+                        code_verifier: verifier
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Token exchange failed');
+                }
+                
+                const tokens = await response.json();
+                state.accessToken = tokens.access_token;
+                state.refreshToken = tokens.refresh_token;
+                
+                // Parse user info from token
+                const payload = JSON.parse(atob(tokens.access_token.split('.')[1]));
+                state.user = {
+                    username: payload.preferred_username,
+                    email: payload.email,
+                    roles: payload.realm_access?.roles || []
+                };
+                
+                log(`Login successful! Welcome ${state.user.username}`, 'success');
+                updateAuthUI(true);
+                setFlowStep(1, 'complete');
+                
+                // Clean up URL
+                window.history.replaceState({}, document.title, window.location.pathname);
+                sessionStorage.removeItem('pkce_verifier');
+                
+                return true;
+                
+            } catch (error) {
+                log(`Token exchange failed: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        function logout() {
+            log('Logging out...', 'info');
+            
+            // Clear state
+            state.accessToken = null;
+            state.refreshToken = null;
+            state.user = null;
+            
+            updateAuthUI(false);
+            resetFlowSteps();
+            
+            // Redirect to Keycloak logout
+            const logoutUrl = `${CONFIG.keycloak.url}/realms/${CONFIG.keycloak.realm}/protocol/openid-connect/logout`;
+            const redirectUrl = window.location.origin + window.location.pathname;
+            
+            window.location.href = `${logoutUrl}?post_logout_redirect_uri=${encodeURIComponent(redirectUrl)}&client_id=${CONFIG.keycloak.clientId}`;
+        }
+
+        // ============================================
+        // UI Updates
+        // ============================================
+        function updateAuthUI(isAuthenticated) {
+            const authBadge = document.getElementById('auth-badge');
+            const loginSection = document.getElementById('login-section');
+            const userSection = document.getElementById('user-section');
+            
+            if (isAuthenticated) {
+                authBadge.textContent = 'Authenticated';
+                authBadge.className = 'badge badge-success';
+                loginSection.classList.add('hidden');
+                userSection.classList.remove('hidden');
+                
+                document.getElementById('user-name').textContent = state.user.username;
+                document.getElementById('user-email').textContent = state.user.email || 'N/A';
+                document.getElementById('user-roles').textContent = state.user.roles.join(', ') || 'N/A';
+            } else {
+                authBadge.textContent = 'Not Authenticated';
+                authBadge.className = 'badge badge-warning';
+                loginSection.classList.remove('hidden');
+                userSection.classList.add('hidden');
+            }
+        }
+
+        function toggleToken() {
+            const tokenSection = document.getElementById('token-section');
+            tokenSection.classList.toggle('hidden');
+            
+            if (!tokenSection.classList.contains('hidden')) {
+                // Parse and display token
+                const parts = state.accessToken.split('.');
+                const header = JSON.parse(atob(parts[0]));
+                const payload = JSON.parse(atob(parts[1]));
+                
+                tokenSection.innerHTML = `<strong>Header:</strong>\n${JSON.stringify(header, null, 2)}\n\n<strong>Payload:</strong>\n${JSON.stringify(payload, null, 2)}`;
+            }
+        }
+
+        function setFlowStep(step, status) {
+            const stepEl = document.getElementById(`step-${step}`);
+            if (stepEl) {
+                stepEl.classList.remove('active', 'complete');
+                if (status) {
+                    stepEl.classList.add(status);
+                }
+            }
+        }
+
+        function resetFlowSteps() {
+            for (let i = 1; i <= 5; i++) {
+                setFlowStep(i, null);
+            }
+        }
+
+        function updateApiStatus(status, text) {
+            const dot = document.getElementById('api-status-dot');
+            const textEl = document.getElementById('api-status-text');
+            
+            dot.className = `status-dot ${status}`;
+            textEl.textContent = text;
+        }
+
+        function showApiResponse(data) {
+            const responseBox = document.getElementById('api-response');
+            const content = document.getElementById('api-response-content');
+            
+            responseBox.classList.remove('hidden');
+            content.textContent = JSON.stringify(data, null, 2);
+        }
+
+        // ============================================
+        // API Calls
+        // ============================================
+        async function apiCall(endpoint, method = 'GET', body = null) {
+            if (!state.accessToken) {
+                log('Not authenticated! Please login first.', 'error');
+                return null;
+            }
+            
+            updateApiStatus('pending', 'Calling API...');
+            setFlowStep(2, 'active');
+            
+            log(`API Call: ${method} ${endpoint}`, 'info');
+            
+            try {
+                // Step 2: Frontend → Service A
+                await sleep(300);
+                setFlowStep(2, 'complete');
+                setFlowStep(3, 'active');
+                log('Token sent to Service A for validation', 'info');
+                
+                const options = {
+                    method,
+                    headers: {
+                        'Authorization': `Bearer ${state.accessToken}`,
+                        'Content-Type': 'application/json',
+                        'X-Correlation-ID': crypto.randomUUID()
+                    }
+                };
+                
+                if (body) {
+                    options.body = JSON.stringify(body);
+                }
+                
+                const response = await fetch(`${CONFIG.api.serviceA}${endpoint}`, options);
+                
+                // Step 3: Token validated
+                await sleep(200);
+                setFlowStep(3, 'complete');
+                
+                // For order detail, show step 4 (service-to-service)
+                if (endpoint.includes('/orders/ORD-')) {
+                    setFlowStep(4, 'active');
+                    log('Service A calling Service B for inventory data...', 'info');
+                    await sleep(400);
+                    setFlowStep(4, 'complete');
+                }
+                
+                setFlowStep(5, 'active');
+                
+                const data = await response.json();
+                
+                await sleep(200);
+                setFlowStep(5, 'complete');
+                
+                if (response.ok) {
+                    updateApiStatus('success', `Success (${response.status})`);
+                    log(`Response received: ${response.status} OK`, 'success');
+                } else {
+                    updateApiStatus('error', `Error (${response.status})`);
+                    log(`API Error: ${response.status} - ${data.message || 'Unknown error'}`, 'error');
+                }
+                
+                showApiResponse(data);
+                return data;
+                
+            } catch (error) {
+                updateApiStatus('error', 'Request Failed');
+                log(`Network error: ${error.message}`, 'error');
+                showApiResponse({ error: error.message });
+                return null;
+            }
+        }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        async function getOrders() {
+            resetFlowSteps();
+            setFlowStep(1, 'complete');
+            await apiCall('/api/v1/orders');
+        }
+
+        async function getOrderDetail(orderId) {
+            resetFlowSteps();
+            setFlowStep(1, 'complete');
+            log(`Fetching order ${orderId} with inventory enrichment...`, 'info');
+            await apiCall(`/api/v1/orders/${orderId}`);
+        }
+
+        async function getProfile() {
+            resetFlowSteps();
+            setFlowStep(1, 'complete');
+            await apiCall('/api/v1/user/profile');
+        }
+
+        // ============================================
+        // Initialization
+        // ============================================
+        async function init() {
+            log('Zero Trust Demo initialized', 'info');
+            log(`Keycloak URL: ${CONFIG.keycloak.url}`, 'info');
+            log(`Service A URL: ${CONFIG.api.serviceA}`, 'info');
+            
+            // Check for OAuth callback
+            const handled = await handleCallback();
+            
+            if (!handled) {
+                // Check for existing session (you could implement token refresh here)
+                updateAuthUI(false);
+            }
+        }
+
+        // Start the app
+        init();
+    </script>
+</body>
+</html>
